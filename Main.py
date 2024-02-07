@@ -56,8 +56,10 @@ def main():
 
         if board.is_checkmate():  # restart the game, once check mate or stalemate
             gameOver = True
+            drawText(screen, " Win by CheckMate")
         elif board.is_stalemate():
             gameOver = True
+            drawText(screen, "StaleMate")
 
         for e in p.event.get():
             if e.type == p.QUIT:  # exits the game
@@ -137,6 +139,8 @@ def drawGameState(screen, board, sqSelected=None):
     # responsible for all graphics with current game state
 
     drawBoard(screen)
+    highlightSquares(screen, board, sqSelected)
+    drawPieces(screen, board)
 
 
 def drawBoard(screen):
@@ -150,6 +154,55 @@ def drawBoard(screen):
             # every other cell has same color, i.e. sum of row and column will be even/ odd for each color
             p.draw.rect(screen, color, p.Rect(c * SQ_SIZE, r * SQ_SIZE, SQ_SIZE, SQ_SIZE))
 
+
+def drawPieces(screen, board):
+    # draw the pieces using current gamestate
+
+    for row in range(DIMENSION):
+        for col in range(DIMENSION):
+            square = chess.square(row, col)
+            piece = board.piece_at(square)
+            if piece is not None:  # space is not empty
+                screen.blit(IMAGES[piece.symbol()], p.Rect(row * SQ_SIZE, (7 - col) * SQ_SIZE, SQ_SIZE, SQ_SIZE))
+
+
+def highlightSquares(screen, board, sqSelected):
+    # highlighting the possible moves of a piece
+    if sqSelected != ():
+        # empty square is not selected
+        row, column = sqSelected
+        index = chess_index_from_row_col(row, column)
+        piece = board.piece_at(index)
+        if piece is not None and board.piece_at(index).color == board.turn:  # sq selected is a piece of current player
+
+            # highlight the selected square
+            surface = p.Surface((SQ_SIZE, SQ_SIZE))  # setting up the surface
+            surface.set_alpha(150)  # setting transparency ,0 = transparent, 255=opaque
+            surface.fill((106, 155, 65))
+            screen.blit(surface, (row * SQ_SIZE, (7 - column) * SQ_SIZE))
+
+            # highlight potential moves
+            surface.fill((250, 250, 122))
+            indices = []
+            for move in board.legal_moves:
+                if move.from_square == index:
+                    row, col = row_col_from_chess_index(move.to_square)
+                    indices.append([row, col])
+                    # all potential moves of selected piece
+
+            for i in indices:
+                screen.blit(surface, ((i[0]) * SQ_SIZE, (7 - i[1]) * SQ_SIZE))
+
+
+def drawText(screen, text):
+    font = p.font.Font(None, 36)
+    textObject = font.render(text, False, p.Color('Gray'))
+    textLocation = p.Rect(0, 0, BOARD_WIDTH, BOARD_HEIGHT).move(BOARD_WIDTH / 2 - textObject.get_width() / 2,
+                                                                BOARD_HEIGHT / 2 - textObject.get_height() / 2)
+    screen.blit(textObject, textLocation)
+    textObject = font.render(text, False, p.Color("Black"))
+    screen.blit(textObject, textLocation)
+    p.display.flip()
 
 
 if __name__ == "__main__":
