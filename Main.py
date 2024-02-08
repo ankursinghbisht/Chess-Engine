@@ -5,8 +5,8 @@ Responsible for handling user input and displaying current gamestate
 
 import chess
 import pygame as p
-import numpy as np
 import time
+import AI
 
 p.init()
 BOARD_WIDTH = BOARD_HEIGHT = 512  # size of our board
@@ -40,7 +40,7 @@ PIECES = ['p', 'r', 'n', 'b', 'k', 'q', 'P', 'R', 'N', 'B', 'K', 'Q']
 def main():
     # main driver function , handles inputs and graphics update
     sqSelected = ()
-    Indices = []  # keeps track of player clicks
+    prev = None
 
     screen = p.display.set_mode((BOARD_WIDTH, BOARD_HEIGHT))  # set up the screen
     p.display.set_caption("Chess")
@@ -53,51 +53,59 @@ def main():
     time.sleep(1)
     running = True
     while running:
+        if board.is_checkmate() or board.is_stalemate() or board.can_claim_threefold_repetition():
+            # restart the game, once check mate or stalemate or 3-fold repetition
+            board = chess.Board()
+            drawText(screen, f'Game ended')
+            time.sleep(2)
 
-        if board.is_checkmate():  # restart the game, once check mate or stalemate
-            gameOver = True
-            drawText(screen, " Win by CheckMate")
-        elif board.is_stalemate():
-            gameOver = True
-            drawText(screen, "StaleMate")
+        if board.turn == chess.BLACK:
+            move = AI.findBestMove(board)
+            board.push(move)
+
+        if board.turn == chess.WHITE:
+            move = AI.findBestMove(board)
+            board.push(move)
 
         for e in p.event.get():
             if e.type == p.QUIT:  # exits the game
                 running = False
                 break
-            elif e.type == p.MOUSEBUTTONUP:
+            elif e.type == p.MOUSEBUTTONDOWN:
                 location = p.mouse.get_pos()  # x, y coordinate of mouse click
                 col = (DIMENSION - 1) - (location[1] // SQ_SIZE)
                 row = (location[0] // SQ_SIZE)
                 index = chess_index_from_row_col(row, col)
-                Indices.append(index)
                 sqSelected = (row, col)
                 # determining which square user clicked
-
-                if board.piece_at(index) is None and len(Indices) == 1:
-                    Indices.append(chess_index_from_row_col(row, col))
-
-                if len(Indices) == 2:
-                    # once 2 clicks are made to move the piece, move the piece
-                    move = chess.Move(Indices[0], Indices[1])
+                if prev is None:
+                    prev = index
+                else:
+                    if board.piece_at(prev) is not None and board.piece_at(prev).piece_type == chess.PAWN and col in (
+                    0, 7):
+                        move = chess.Move(prev, index, chess.QUEEN)
+                    else:
+                        move = chess.Move(prev, index)
+                    print(move)
                     if move in board.legal_moves:
                         # If the move is valid, make the move
                         board.push(move)
-                    Indices = []
+                    prev = None
+
 
             elif e.type == p.KEYDOWN:
                 if e.key == p.K_z:
                     # if key entered is "z", undo moves
                     if board.move_stack:
                         board.pop()
-
+                    prev = None
                 if e.key == p.K_r:
                     # if key entered is "r", reset board
                     board = chess.Board()
-                    Indices = []
+                    prev = None
 
-            drawGameState(screen, board, sqSelected)  # draw the board
-            p.display.flip()
+        drawGameState(screen, board, sqSelected)  # draw the board
+        p.display.flip()
 
 
 def chess_index_from_row_col(row, col):
